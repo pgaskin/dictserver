@@ -1,0 +1,79 @@
+{
+	"comment": "",
+	"ignore": "test",
+	"package": [
+		{
+			"checksumSHA1": "TTjErB6yl3AgHq6JJVSGtuy2IfM=",
+			"path": "github.com/gobuffalo/packr",
+			"revision": "ee34b116572778801ca4a9f6355eda4577cabce8",
+			"revisionTime": "2018-06-09T16:30:07Z"
+		},
+		{
+			"checksumSHA1": "X7g98YfLr+zM7aN76AZvAfpZyfk=",
+			"path": "github.com/julienschmidt/httprouter",
+			"revision": "adbc77eec0d91467376ca515bc3a14b8434d0f18",
+			"revisionTime": "2018-04-11T15:45:01Z"
+		},
+		{
+			"checksumSHA1": "xJxcUdIwcbveefDMdvICNj8HFlE=",
+			"path": "github.com/kljensen/snowball",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "Mamq6B+cCRP1bwdA9tNN8zQZboM=",
+			"path": "github.com/kljensen/snowball/english",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "+UjneMjiaAM9w0CPEomYmuWIrdw=",
+			"path": "github.com/kljensen/snowball/french",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "a1XnlKlL/hGzY7lPH0VtMwU9xXQ=",
+			"path": "github.com/kljensen/snowball/romance",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "/WlJq14EsoSis1c9l2MmDswS+Eg=",
+			"path": "github.com/kljensen/snowball/russian",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "gZwI+D22rqr3K8GeoJNpWVdWPLk=",
+			"path": "github.com/kljensen/snowball/snowballword",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "um0a3zYR8Hbv6CJPdcg0Es7F8u0=",
+			"path": "github.com/kljensen/snowball/spanish",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "DnmEk6LqwHlhtEQKfEBO9YpP2w0=",
+			"path": "github.com/kljensen/snowball/swedish",
+			"revision": "cdd051934c465bddbd640cafe6c7e971de7f0bba",
+			"revisionTime": "2018-06-21T12:55:54Z"
+		},
+		{
+			"checksumSHA1": "ljd3FhYRJ91cLZz3wsH9BQQ2JbA=",
+			"path": "github.com/pkg/errors",
+			"revision": "816c9085562cd7ee03e7f8188a1cfd942858cded",
+			"revisionTime": "2018-03-11T21:45:15Z"
+		},
+		{
+			"checksumSHA1": "OJI0OgC5V8gZtfS1e0CDYMhkDNc=",
+			"path": "github.com/spf13/pflag",
+			"revision": "3ebe029320b2676d667ae88da602a5f854788a8a",
+			"revisionTime": "2018-06-01T13:25:42Z"
+		}
+	],
+	"rootPath": "github.com/geek1011/dictserver"
+}
