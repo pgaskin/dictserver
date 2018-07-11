@@ -151,6 +151,11 @@ func Load() (*Dictionary, error) {
 						d.WordMap[aw] = w
 					}
 				}
+				if sw, err := snowball.Stem(w.Word, "english", false); err == nil {
+					if _, e := d.WordMap[sw]; !e { // Don't overwrite after first definition
+						d.WordMap[sw] = w
+					}
+				}
 			}
 
 			spl := strings.Split(strings.ToLower(s), ";")
