@@ -1,0 +1,2 @@
+# dictserver
+Dictionary library and API server based on data from the *Project Gutenberg EBook of Webster's Unabridged Dictionary*. See the dictionary folder for usage as a Go library and the parsing code.
