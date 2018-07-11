@@ -189,6 +189,12 @@ func (d *Dictionary) Lookup(word string) (*Word, bool) {
 	if !ok {
 		if st, err := snowball.Stem(strings.ToLower(word), "english", true); err == nil {
 			w, ok = d.WordMap[st]
+			if !ok {
+				w, ok = d.WordMap[strings.TrimRight(strings.ToLower(word), "s")]
+				if !ok {
+					w, ok = d.WordMap[strings.Replace(strings.Replace(strings.ToLower(word), "ing", "", 1), "ly", "", 1)]
+				}
+			}
 		}
 	}
 	if ok {
