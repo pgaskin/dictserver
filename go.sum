@@ -1,0 +1,6 @@
+github.com/go-chi/chi v0.0.0-20190316151245-d08916613452 h1:jO5Yr6G8v5j4TfeULuAOIQi5KcRxHE7p0L5QB7dm38Y=
+github.com/go-chi/chi v0.0.0-20190316151245-d08916613452/go.mod h1:eB3wogJHnLi3x/kFX2A+IbTBlXxmMeXJVKy9tTv1XzQ=
+github.com/kljensen/snowball v0.0.0-20190204152030-115fa8f6419d h1:6g47To9GR0Y8atgeNu/NNshK3BOvdiV+dIoNdlpMBtk=
+github.com/kljensen/snowball v0.0.0-20190204152030-115fa8f6419d/go.mod h1:27N7E8fVU5H68RlUmnWwZCfxgt4POBJfENGMvNRhldw=
+github.com/spf13/pflag v0.0.0-20181223182923-24fa6976df40 h1:+fBLXG9122bARNDiwUt7b1hnca/mLnUxXlH7ChuFKPQ=
+github.com/spf13/pflag v0.0.0-20181223182923-24fa6976df40/go.mod h1:DYY7MBk1bdzusC3SYhjObp+wFpr4gzcvqqNjLnInEg4=

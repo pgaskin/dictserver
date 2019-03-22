@@ -1,20 +1,19 @@
 image: ubuntu
 
-clone_folder: /usr/go/src/github.com/geek1011/dictserver
+# stack: go 1.12
 
-stack: go 1.11
+version: '{build}'
+
+cache:
+- go1.12.1.deb -> .appveyor.yml
 
 install:
 - 'if [[ $APPVEYOR_REPO_TAG == "true" ]]; then appveyor UpdateBuild -Version "$(git describe --tags --always)"; else appveyor UpdateBuild -Version "$(git rev-parse --short HEAD)"; fi'
-- sudo chmod -R o+w /usr/go
-- export "GOPATH=/usr/go"
-- export "PATH=$GOPATH/bin:$PATH"
-- go get github.com/kardianos/govendor
-- govendor sync
-- govendor list
+- wget -O go1.12.1.deb https://deb.geek1011.net/pool/main/g/go/go_1.12.1-godeb1_amd64.deb
+- sudo dpkg -i go1.12.1.deb
+- go mod download
 
 build_script:
-- export GOPATH=/usr/go
 - ./build.sh
 
 test: off
