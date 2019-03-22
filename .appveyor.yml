@@ -1,0 +1,20 @@
+image: ubuntu
+
+clone_folder: /usr/go/src/github.com/geek1011/dictserver
+
+environment:
+  GOPATH: /usr/go/
+
+stack: go 1.11
+
+install:
+- govendor sync
+- govendor list
+
+build_script:
+- ./build.sh
+
+test: off
+
+artifacts:
+- path: build/*
