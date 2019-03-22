@@ -8,22 +8,17 @@ import (
 )
 
 func main() {
-	var idx, db string
+	var dictfile string
 	switch len(os.Args) {
 	case 2:
-		idx = os.Args[1] + ".idx"
-		db = os.Args[1] + ".db"
-	case 3:
-		idx = os.Args[1]
-		db = os.Args[2]
+		dictfile = os.Args[1]
 	default:
-		fmt.Printf("Usage: %s IDX DB\n", os.Args[0])
-		fmt.Printf("   or: %s DB_BASE\n", os.Args[0])
+		fmt.Printf("Usage: %s DICT_FILE\n", os.Args[0])
 		os.Exit(1)
 	}
 
 	fmt.Printf("Opening dictionary\n")
-	dict, err := dictionary.OpenFile(idx, db)
+	dict, err := dictionary.OpenFile(dictfile)
 	if err != nil {
 		fmt.Printf("Error opening dictionary: %v\n", err)
 		os.Exit(1)

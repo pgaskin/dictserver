@@ -1,4 +1,3 @@
-*.db
-*.idx
+dict
 dictserver
 build

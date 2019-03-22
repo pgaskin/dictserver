@@ -21,22 +21,18 @@ func main() {
 	help := pflag.BoolP("help", "h", false, "Show this message")
 	pflag.Parse()
 
-	var idx, db string
-	if n := pflag.NArg(); *help || (n != 1 && n != 2) {
-		fmt.Printf("Usage: dictserver [options] IDX_FILE DB_FILE\n   or: dictserver [options] DB_BASE\n\nVersion: dictserver %s\n\nOptions:\n", version)
+	var dictfile string
+	if n := pflag.NArg(); *help || n != 1 {
+		fmt.Printf("Usage: dictserver [options] DICT_FILE\n   or: dictserver [options] DB_BASE\n\nVersion: dictserver %s\n\nOptions:\n", version)
 		pflag.PrintDefaults()
-		fmt.Printf("\nArguments:\n  IDX_FILE and DB_FILE are the path to the respective *.idx and *.db files. If the basename\n  is the same, DB_BASE can be used instead. These files can be generated using tools/dictparse.\n")
+		fmt.Printf("\nArguments:\n  DICT_FILE is the path to the dict file. It can be generated using tools/dictparse.\n")
 		os.Exit(1)
-	} else if n == 1 {
-		idx = pflag.Arg(0) + ".idx"
-		db = pflag.Arg(0) + ".db"
 	} else {
-		idx = pflag.Arg(0)
-		db = pflag.Arg(1)
+		dictfile = pflag.Arg(0)
 	}
 
-	fmt.Printf("Opening dictionary '%s' and '%s'\n", idx, db)
-	dict, err := dictionary.OpenFile(idx, db)
+	fmt.Printf("Opening dictionary '%s'\n", dictfile)
+	dict, err := dictionary.OpenFile(dictfile)
 	if err != nil {
 		fmt.Printf("Error opening dictionary: %v\n", err)
 		os.Exit(1)

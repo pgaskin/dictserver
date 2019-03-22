@@ -9,24 +9,18 @@ import (
 )
 
 func main() {
-	var idx, db, word string
+	var dictfile, word string
 	switch len(os.Args) {
 	case 3:
-		idx = os.Args[1] + ".idx"
-		db = os.Args[1] + ".db"
+		dictfile = os.Args[1]
 		word = os.Args[2]
-	case 4:
-		idx = os.Args[1]
-		db = os.Args[2]
-		word = os.Args[3]
 	default:
-		fmt.Printf("Usage: %s IDX DB WORD\n", os.Args[0])
-		fmt.Printf("   or: %s DB_BASE WORD\n", os.Args[0])
+		fmt.Printf("Usage: %s DICT_FILE WORD\n", os.Args[0])
 		os.Exit(1)
 	}
 
 	fmt.Printf("Opening dictionary\n")
-	dict, err := dictionary.OpenFile(idx, db)
+	dict, err := dictionary.OpenFile(dictfile)
 	if err != nil {
 		fmt.Printf("Error opening dictionary: %v\n", err)
 		os.Exit(1)

@@ -8,19 +8,13 @@ import (
 )
 
 func main() {
-	var txt, idx, db string
+	var txt, dictfile string
 	switch len(os.Args) {
 	case 3:
 		txt = os.Args[1]
-		idx = os.Args[2] + ".idx"
-		db = os.Args[2] + ".db"
-	case 4:
-		txt = os.Args[1]
-		idx = os.Args[2]
-		db = os.Args[3]
+		dictfile = os.Args[2]
 	default:
-		fmt.Printf("Usage: %s DICT_TXT_IN IDX_OUT DB_OUT\n", os.Args[0])
-		fmt.Printf("   or: %s DICT_TXT_IN BASE_OUT\n", os.Args[0])
+		fmt.Printf("Usage: %s DICT_TXT_IN DICT_FILE_OUT\n", os.Args[0])
 		os.Exit(1)
 	}
 
@@ -42,9 +36,9 @@ func main() {
 	fmt.Printf("-- Parsed %d entries\n", wm.NumWords())
 
 	fmt.Printf("Creating database\n")
-	err = dictionary.CreateFile(wm, idx, db)
+	err = dictionary.CreateFile(wm, dictfile)
 	if err != nil {
-		fmt.Printf("Could not export dictionary file to '%s' and '%s': %v\n", idx, db, err)
+		fmt.Printf("Could not export dictionary file to '%s': %v\n", dictfile, err)
 		os.Exit(1)
 	}
 
