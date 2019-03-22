@@ -5,7 +5,7 @@ clone_folder: /usr/go/src/github.com/geek1011/dictserver
 stack: go 1.11
 
 install:
-- appveyor UpdateBuild -Version "$(git describe --tags --always)"
+- 'if [[ $APPVEYOR_REPO_TAG == "true" ]]; then appveyor UpdateBuild -Version "$(git describe --tags --always)"; else appveyor UpdateBuild -Version "$(git rev-parse --short HEAD)"; fi'
 - sudo chmod -R o+w /usr/go
 - export "GOPATH=/usr/go"
 - export "PATH=$GOPATH/bin:$PATH"
@@ -21,3 +21,16 @@ test: off
 
 artifacts:
 - path: build/*
+
+deploy:
+  release: $(APPVEYOR_BUILD_VERSION)
+  description: ' '
+  provider: GitHub
+  auth_token:
+    secure: oMHoA3qAfCcz3PsfBJmce+fKcSOtUF1cTC3RUj1qKT4J4BjbkOcawazIrXR4F1eb
+  artifact: /.+/
+  draft: false
+  prerelease: false
+  on:
+    branch: master
+    APPVEYOR_REPO_TAG: true
