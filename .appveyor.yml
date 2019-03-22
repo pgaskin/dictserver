@@ -2,16 +2,19 @@ image: ubuntu
 
 clone_folder: /usr/go/src/github.com/geek1011/dictserver
 
-environment:
-  GOPATH: /usr/go/
-
 stack: go 1.11
 
 install:
+- appveyor UpdateBuild -Version "$(git describe --tags --always)"
+- sudo chmod -R o+w /usr/go
+- export "GOPATH=/usr/go"
+- export "PATH=$GOPATH/bin:$PATH"
+- go get github.com/kardianos/govendor
 - govendor sync
 - govendor list
 
 build_script:
+- export GOPATH=/usr/go
 - ./build.sh
 
 test: off
