@@ -23,7 +23,7 @@ artifacts:
 
 deploy:
   release: $(APPVEYOR_BUILD_VERSION)
-  description: ' '
+  description: '&nbsp;'
   provider: GitHub
   auth_token:
     secure: oMHoA3qAfCcz3PsfBJmce+fKcSOtUF1cTC3RUj1qKT4J4BjbkOcawazIrXR4F1eb
