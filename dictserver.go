@@ -22,17 +22,17 @@ func main() {
 	pflag.Parse()
 
 	var idx, db string
-	if n := len(os.Args); *help || (n != 2 && n != 3) {
+	if n := pflag.NArg(); *help || (n != 1 && n != 2) {
 		fmt.Printf("Usage: dictserver [options] IDX_FILE DB_FILE\n   or: dictserver [options] DB_BASE\n\nVersion: dictserver %s\n\nOptions:\n", version)
 		pflag.PrintDefaults()
 		fmt.Printf("\nArguments:\n  IDX_FILE and DB_FILE are the path to the respective *.idx and *.db files. If the basename\n  is the same, DB_BASE can be used instead. These files can be generated using tools/dictparse.\n")
 		os.Exit(1)
-	} else if n == 2 {
-		idx = os.Args[1] + ".idx"
-		db = os.Args[1] + ".db"
+	} else if n == 1 {
+		idx = pflag.Arg(0) + ".idx"
+		db = pflag.Arg(0) + ".db"
 	} else {
-		idx = os.Args[1]
-		db = os.Args[2]
+		idx = pflag.Arg(0)
+		db = pflag.Arg(1)
 	}
 
 	fmt.Printf("Opening dictionary '%s' and '%s'\n", idx, db)
