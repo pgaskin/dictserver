@@ -1,0 +1,4 @@
+*.db
+*.idx
+dictserver
+build

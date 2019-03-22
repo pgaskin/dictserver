@@ -10,10 +10,10 @@ for natural language processing.
 
 |                      |  Status                   |
 | -------------------- | ------------------------- |
-| Latest release       |  [v0.5.0](https://github.com/kljensen/snowball/tags) (2017-10-10) |
+| Latest release       |  [v0.6.0](https://github.com/kljensen/snowball/tags) (2018-10-29) |
 | Latest build status  |  [![Build Status](https://travis-ci.org/kljensen/snowball.png)](https://travis-ci.org/kljensen/snowball)
-| Go versions tested   |  go1.7.4                 |
-| Languages available  |  English, Spanish (español), French (le français), Russian (ру́сский язы́к), Swedish (svenska)|
+| Latest Go versions tested   |  go1.10 darwin/amd64                 |
+| Languages available  |  English, Spanish (español), French (le français), Russian (ру́сский язы́к), Swedish (svenska), Norwegian (norsk)|
 | License              |  MIT                      |
 
 
@@ -47,12 +47,12 @@ The code is organized as follows:
 * The stemmer for each language is defined in a "sub-package", e.g `snowball/spanish`.
 * Each language exports a `Stem` function: e.g. `spanish.Stem`,
   which is defined in `snowball/spanish/stem.go`.
-* Code that is common to multiple lanuages may go in a separate package,
+* Code that is common to multiple languages may go in a separate package,
   e.g. the small `romance` package.
 
 Some notes about the implementation:
 
-* In order to ensure the code is easily extended to non-English lanuages,
+* In order to ensure the code is easily extended to non-English languages,
   I avoided using bytes and byte arrays, and instead perform all operations
   on runes.  See `snowball/snowballword/snowballword.go` and the
   `SnowballWord` struct.
@@ -85,7 +85,7 @@ To run the tests, do `go test ./...` in the top-level directory.
 
 ## Future work
 
-I'd like to implement the Snowball stemmer in more lanuages.
+I'd like to implement the Snowball stemmer in more languages.
 If you can help, I would greatly appreciate it: please fork the project and send
 a pull request!
 
@@ -118,6 +118,7 @@ I know of a few other stemmers availble in Go:
 * [Shawn Smith](https://github.com/shawnps)
 * [Herman Schaaf](https://github.com/hermanschaaf)
 * [Anton Södergren](https://github.com/AAAton)
+* [Eivind Moland](https://github.com/eivindam)
 * Your name should be here!
 
 
