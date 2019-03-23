@@ -1,0 +1,69 @@
+kind: pipeline
+name: default
+
+steps:
+- name: build-tools
+  image: golang:1.12-stretch
+  commands:
+  - go mod download
+  - go build -o dictlookup ./tools/dictlookup
+  - go build -o dictparse ./tools/dictparse
+  - go build -o dictverify ./tools/dictverify
+
+- name: build-server
+  image: golang:1.12-stretch
+  commands:
+  - go build -o dictserver -ldflags "-s -w -X main.version=$(git describe --tags --always)" .
+
+- name: test
+  image: golang:1.12-stretch
+  commands:
+  - go test -v ./...
+
+- name: dictionary-parse
+  image: golang:1.12-stretch
+  commands:
+  - ./dictparse ./data/dictionary.txt ./dict
+  depends_on:
+  - build-tools
+
+- name: dictionary-test
+  image: golang:1.12-stretch
+  commands:
+  - ./dictverify ./dict
+  depends_on:
+  - dictionary-parse
+
+- name: dictionary-upload
+  image: golang:1.12-stretch
+  commands:
+  - curl --upload-file ./dict https://transfer.sh/dict
+  depends_on:
+  - dictionary-test
+
+- name: build-cross
+  image: golang:1.12-stretch
+  commands:
+  - ./build.sh
+  depends_on:
+  - dictionary-test
+  - build-server
+
+# - name: release
+#   image: plugins/github-release
+#   settings:
+#     api_key:
+#       from_secret: github_token
+#     files: build/*
+#   when:
+#     event: tag
+#   depends_on:
+#   - build-cross
+
+# - name: deploy-server
+#   depends_on:
+#   - build-cross
+
+# - name: deploy-dict
+#   depends_on:
+#   - dictionary-test
