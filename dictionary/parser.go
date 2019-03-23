@@ -150,6 +150,11 @@ func Parse(rd io.Reader) (WordMap, error) {
 
 				if _, e := wm[w.Word]; !e { // Don't overwrite after first definition
 					wm[w.Word] = w
+				} else {
+					// some words, like jump, have more than one entry
+					// TODO: a way to return multiple word entries for a word in v2
+					(*wm[w.Word]).Info = strings.TrimSpace(wm[w.Word].Info) + "; " + w.Info
+					(*wm[w.Word]).Meanings = append(wm[w.Word].Meanings, w.Meanings...)
 				}
 				for _, aw := range w.Alternates {
 					if _, e := wm[aw]; !e { // Don't overwrite after first definition
