@@ -23,16 +23,16 @@ type Store interface {
 
 // Word represents a word.
 type Word struct {
-	Word       string   `json:"word,omitempty"`
-	Alternates []string `json:"alternates,omitempty"`
-	Info       string   `json:"info,omitempty"`
-	Etymology  string   `json:"etymology,omitempty"`
+	Word       string   `json:"word,omitempty" msgpack:"w"`
+	Alternates []string `json:"alternates,omitempty" msgpack:"a"`
+	Info       string   `json:"info,omitempty" msgpack:"i"`
+	Etymology  string   `json:"etymology,omitempty" msgpack:"e"`
 	Meanings   []struct {
-		Text    string `json:"text,omitempty"`
-		Example string `json:"example,omitempty"`
-	} `json:"meanings,omitempty"`
-	Extra  string `json:"extra,omitempty"`
-	Credit string `json:"credit,omitempty"`
+		Text    string `json:"text,omitempty" msgpack:"t"`
+		Example string `json:"example,omitempty" msgpack:"e"`
+	} `json:"meanings,omitempty" msgpack:"m"`
+	Extra  string `json:"extra,omitempty" msgpack:"x"`
+	Credit string `json:"credit,omitempty" msgpack:"c"`
 }
 
 // Lookup looks up a word in the dictionary. It applies stemming to the word if no direct match is found. If

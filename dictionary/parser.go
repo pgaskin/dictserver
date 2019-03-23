@@ -96,8 +96,8 @@ func Parse(rd io.Reader) (WordMap, error) {
 					} else if defnCategoryRe.MatchString(s) {
 						state = "defn-category" // Can contain single defn.
 						w.Meanings = append(w.Meanings, struct {
-							Text    string `json:"text,omitempty"`
-							Example string `json:"example,omitempty"`
+							Text    string `json:"text,omitempty" msgpack:"t"`
+							Example string `json:"example,omitempty" msgpack:"e"`
 						}{Text: defnCategoryRe.FindStringSubmatch(s)[1]})
 						continue
 					} else if state == "defn-category" {
@@ -115,8 +115,8 @@ func Parse(rd io.Reader) (WordMap, error) {
 					} else if defnRe.MatchString(s) {
 						state = "defn" // Contains text until blank line.
 						w.Meanings = append(w.Meanings, struct {
-							Text    string `json:"text,omitempty"`
-							Example string `json:"example,omitempty"`
+							Text    string `json:"text,omitempty" msgpack:"t"`
+							Example string `json:"example,omitempty" msgpack:"e"`
 						}{Text: defnRe.FindStringSubmatch(s)[1]})
 						continue
 					} else if state == "defn" {
@@ -133,8 +133,8 @@ func Parse(rd io.Reader) (WordMap, error) {
 					} else if singleDefnRe.MatchString(s) {
 						state = "single-defn" // Contains text until blank line.
 						w.Meanings = append(w.Meanings, struct {
-							Text    string `json:"text,omitempty"`
-							Example string `json:"example,omitempty"`
+							Text    string `json:"text,omitempty" msgpack:"t"`
+							Example string `json:"example,omitempty" msgpack:"e"`
 						}{Text: singleDefnRe.FindStringSubmatch(s)[1]})
 						continue
 					} else if state == "single-defn" {

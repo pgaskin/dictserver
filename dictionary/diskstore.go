@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"compress/zlib"
 	"encoding/binary"
-	"encoding/gob"
 	"fmt"
 	"io"
 	"os"
 	"runtime/debug"
+
+	"github.com/vmihailenco/msgpack"
 )
 
 // FileVer is the current compatibility level of saved Files.
-const FileVer = "DICT4\x00"
+const FileVer = "DICT5\x00"
 
 // File implements an efficient Store which is faster to initialize and uses a lot less memory (~15 MB total) than WordMap.
 //
@@ -22,11 +23,11 @@ const FileVer = "DICT4\x00"
 //
 // The dict file is stored in the following format:
 //
-//   +-----------+--------------+-------------------------------------------+------------+---------------------------------------------+
-//   |           |              |  +------+--------------------------+      |            |                                             |
-//   |  FileVer  |  idx offset  |  | size | zlib compressed Word gob | ...  |  idx size  |  zlib compressed idx map[string]offset gob  |
-//   |           |              |  +------+--------------------------+      |            |                                             |
-//   +-----------+--------------+-------------------------------------------+---- -------+---------------------------------------------+
+//   +-----------+--------------+-----------------------------------------------+------------+-------------------------------------------------+
+//   |           |              |  +------+------------------------------+      |            |                                                 |
+//   |  FileVer  |  idx offset  |  | size | zlib compressed Word msgpack | ...  |  idx size  |  zlib compressed idx map[string]offset msgpack  |
+//   |           |              |  +------+------------------------------+      |            |                                                 |
+//   +-----------+--------------+-----------------------------------------------+---- -------+-------------------------------------------------+
 //
 //   All sizes and offsets are little-endian int64.
 //
@@ -36,26 +37,26 @@ const FileVer = "DICT4\x00"
 // 2. The idx offset is read.
 // 3. The file is seeked to the beginning plus the idx offset.
 // 4. The idx size is read.
-// 5. The bytes for the idx are decompressed using zlib, and the resulting gob is decoded into an in-memory map[string]int64 of the words to offsets.
+// 5. The bytes for the idx are decompressed using zlib, and the resulting msgpack is decoded into an in-memory map[string]int64 of the words to offsets.
 //
 // To read a word:
 //
 // 1. The offset is retrieved from the in-memory idx.
 // 2. The file is seeked to the beginning plus the offset.
 // 4. The size of the compressed word is read.
-// 5. The bytes for the word are decompressed using zlib, and the resulting gob is decoded into an in-memory *Word.
+// 5. The bytes for the word are decompressed using zlib, and the resulting msgpack is decoded into an in-memory *Word.
 //
 // To create the file:
 // 1. The FileVer is written.
 // 2. A placeholder for the idx offset is written.
 // 3. The dictionary map is looped over:
 //    a. If the referenced Word has already been written, it is skipped.
-//    b. The Word is encoded as a gob, compressed and written to a temporary buf.
+//    b. The Word is encoded with msgpack, compressed and written to a temporary buf.
 //    c. The size is written.
 //    d. The buf is written and reset.
 // 5. The current offset is stored for the idx offset.
 // 4. A placeholder for the idx size is written.
-// 5. The idx is encoded as a gob, compressed, and written.
+// 5. The idx is encoded with msgpack, compressed, and written.
 // 6. The idx size is calculated by subtracting the idx offset and the size of the idx size from the current offset.
 // 7. The file is seeked to the idx offset and the idx size is written.
 // 8. The file is seeked to the beginning plus the length of FileVer.
@@ -125,7 +126,7 @@ func CreateFile(wm WordMap, dictfile string) error {
 			return fmt.Errorf("could not compress word: %v", err)
 		}
 
-		if err := gob.NewEncoder(zw).Encode(v); err != nil {
+		if err := msgpack.NewEncoder(zw).Encode(v); err != nil {
 			return fmt.Errorf("could not encode word: %v", err)
 		}
 
@@ -157,7 +158,7 @@ func CreateFile(wm WordMap, dictfile string) error {
 		return fmt.Errorf("could not compress idx: %v", err)
 	}
 
-	if err := gob.NewEncoder(zw).Encode(idx); err != nil {
+	if err := msgpack.NewEncoder(zw).SortMapKeys(false).UseCompactEncoding(true).Encode(idx); err != nil {
 		return fmt.Errorf("could not encode idx: %v", err)
 	}
 
@@ -221,8 +222,7 @@ func OpenFile(dictfile string) (*File, error) {
 	}
 	defer zr.Close()
 
-	err = gob.NewDecoder(zr).Decode(&d.idx)
-	if err != nil {
+	if err := msgpack.NewDecoder(zr).Decode(&d.idx); err != nil {
 		return nil, fmt.Errorf("could not read idx: %v", err)
 	}
 
@@ -294,7 +294,7 @@ func (d *File) get(cur size) (*Word, error) {
 	defer zr.Close()
 
 	var w Word
-	if err := gob.NewDecoder(zr).Decode(&w); err != nil {
+	if err := msgpack.NewDecoder(zr).Decode(&w); err != nil {
 		return nil, fmt.Errorf("could not read gob: %v", err)
 	}
 
