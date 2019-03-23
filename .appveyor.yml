@@ -15,6 +15,8 @@ install:
 
 build_script:
 - ./build.sh
+- LOG="$(git log --pretty='- %h %s' $(git describe --tags --abbrev=0)..HEAD | awk '{printf "%s\\n", $0}')"
+- export "RELEASE_NOTES=$LOG"
 
 test: off
 
@@ -23,7 +25,7 @@ artifacts:
 
 deploy:
   release: $(APPVEYOR_BUILD_VERSION)
-  description: '&nbsp;'
+  description: $(RELEASE_NOTES)
   provider: GitHub
   auth_token:
     secure: oMHoA3qAfCcz3PsfBJmce+fKcSOtUF1cTC3RUj1qKT4J4BjbkOcawazIrXR4F1eb
