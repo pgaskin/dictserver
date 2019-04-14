@@ -120,7 +120,7 @@ type resp struct {
 }
 
 func (r resp) WriteTo(w http.ResponseWriter, status int) {
-	w.Header().Set("Content-Type", "application/json")
+	w.Header().Set("Content-Type", "application/json; charset=utf-8")
 	w.WriteHeader(status)
 
 	enc := json.NewEncoder(w)
