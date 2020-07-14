@@ -1,4 +1,4 @@
-module github.com/geek1011/dictserver
+module github.com/pgaskin/dictserver
 
 go 1.12
 

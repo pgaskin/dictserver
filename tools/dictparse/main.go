@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/geek1011/dictserver/dictionary"
+	"github.com/pgaskin/dictserver/dictionary"
 )
 
 func main() {

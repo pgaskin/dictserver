@@ -6,9 +6,9 @@ import (
 	"net/http"
 	"os"
 
-	"github.com/geek1011/dictserver/dictionary"
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
+	"github.com/pgaskin/dictserver/dictionary"
 	"github.com/spf13/pflag"
 )
 
