@@ -9,7 +9,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/vmihailenco/msgpack"
+	"github.com/vmihailenco/msgpack/v4"
 )
 
 // FileVer is the current compatibility level of saved Files.

@@ -3,7 +3,7 @@ name: default
 
 steps:
 - name: build-tools
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - go mod download
   - go build -o dictlookup ./tools/dictlookup
@@ -11,38 +11,38 @@ steps:
   - go build -o dictverify ./tools/dictverify
 
 - name: build-server
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - go build -o dictserver -ldflags "-s -w -X main.version=$(git describe --tags --always)" .
 
 - name: test
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - go test -v ./...
 
 - name: dictionary-parse
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - ./dictparse ./data/dictionary.txt ./dict
   depends_on:
   - build-tools
 
 - name: dictionary-test
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - ./dictverify ./dict
   depends_on:
   - dictionary-parse
 
 - name: dictionary-upload
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - curl --upload-file ./dict https://transfer.sh/dict
   depends_on:
   - dictionary-test
 
 - name: build-cross
-  image: golang:1.12-stretch
+  image: golang:1.14-stretch
   commands:
   - ./build.sh
   depends_on:
