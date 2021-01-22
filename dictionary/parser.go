@@ -92,6 +92,7 @@ func Parse(r io.Reader) (WordMap, error) {
 		wm[e.Headword] = append(wm[e.Headword], w)
 		for _, v := range e.Variant {
 			wm[v] = append(wm[v], w)
+			w.Alternates = append(w.Alternates, v)
 		}
 	}
 
