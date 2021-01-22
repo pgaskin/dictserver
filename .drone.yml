@@ -2,6 +2,11 @@ kind: pipeline
 name: default
 
 steps:
+- name: tags
+  image: golang:1.14-stretch
+  commands:
+  - git fetch --tags
+
 - name: build-tools
   image: golang:1.14-stretch
   commands:
@@ -44,26 +49,35 @@ steps:
 - name: build-cross
   image: golang:1.14-stretch
   commands:
-  - ./build.sh
+  - mkdir build
+  - cp ./dict ./build/
+  - GOOS=linux GOARCH=amd64 go build -o "./build/dictlookup_linux-x64" -ldflags "-s -w" "./tools/dictlookup"
+  - GOOS=linux GOARCH=amd64 go build -o "./build/dictparse_linux-x64" -ldflags "-s -w" "./tools/dictparse"
+  - GOOS=linux GOARCH=amd64 go build -o "./build/dictverify_linux-x64" -ldflags "-s -w" "./tools/dictverify"
+  - GOOS=linux GOARCH=amd64 go build -o "./build/dictserver_linux-x64" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
+  - GOOS=linux GOARCH=arm go build -o "./build/dictlookup_linux-arm" -ldflags "-s -w" "./tools/dictlookup"
+  - GOOS=linux GOARCH=arm go build -o "./build/dictparse_linux-arm" -ldflags "-s -w" "./tools/dictparse"
+  - GOOS=linux GOARCH=arm go build -o "./build/dictverify_linux-arm" -ldflags "-s -w" "./tools/dictverify"
+  - GOOS=linux GOARCH=arm go build -o "./build/dictserver_linux-arm" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictlookup_windows.exe" -ldflags "-s -w" "./tools/dictlookup"
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictparse_windows.exe" -ldflags "-s -w" "./tools/dictparse"
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictverify_windows.exe" -ldflags "-s -w" "./tools/dictverify"
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictserver_windows.exe" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
+  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictlookup_darwin-x64" -ldflags "-s -w" "./tools/dictlookup"
+  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictparse_darwin-x64" -ldflags "-s -w" "./tools/dictparse"
+  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictverify_darwin-x64" -ldflags "-s -w" "./tools/dictverify"
+  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictserver_darwin-x64" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
   depends_on:
   - dictionary-test
   - build-server
 
-# - name: release
-#   image: plugins/github-release
-#   settings:
-#     api_key:
-#       from_secret: github_token
-#     files: build/*
-#   when:
-#     event: tag
-#   depends_on:
-#   - build-cross
-
-# - name: deploy-server
-#   depends_on:
-#   - build-cross
-
-# - name: deploy-dict
-#   depends_on:
-#   - dictionary-test
+- name: release
+  image: plugins/github-release
+  settings:
+    api_key:
+      from_secret: github_token
+    files: build/*
+  when:
+    event: tag
+  depends_on:
+  - build-cross
