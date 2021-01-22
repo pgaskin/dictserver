@@ -13,7 +13,7 @@ import (
 )
 
 // FileVer is the current compatibility level of saved Files.
-const FileVer = "DICT5\x00"
+const FileVer = "DICT6\x00" // note: can currently handle "DICT5\x00" too
 
 // File implements an efficient Store which is faster to initialize and uses a lot less memory (~15 MB total) than WordMap.
 //
@@ -23,11 +23,11 @@ const FileVer = "DICT5\x00"
 //
 // The dict file is stored in the following format:
 //
-//   +-----------+--------------+-----------------------------------------------+------------+-------------------------------------------------+
-//   |           |              |  +------+------------------------------+      |            |                                                 |
-//   |  FileVer  |  idx offset  |  | size | zlib compressed Word msgpack | ...  |  idx size  |  zlib compressed idx map[string]offset msgpack  |
-//   |           |              |  +------+------------------------------+      |            |                                                 |
-//   +-----------+--------------+-----------------------------------------------+------------+-------------------------------------------------+
+//   +-----------+--------------+-----------------------------------------------+------------+---------------------------------------------------+
+//   |           |              |  +------+------------------------------+      |            |                                                   |
+//   |  FileVer  |  idx offset  |  | size | zlib compressed Word msgpack | ...  |  idx size  |  zlib compressed idx map[string][]offset msgpack  |
+//   |           |              |  +------+------------------------------+      |            |                                                   |
+//   +-----------+--------------+-----------------------------------------------+------------+---------------------------------------------------+
 //
 //   All sizes and offsets are little-endian int64.
 //
@@ -63,7 +63,7 @@ const FileVer = "DICT5\x00"
 // 9. The idx offset is written.
 //
 type File struct {
-	idx map[string]size
+	idx map[string][]size
 	df  interface {
 		io.Reader
 		io.Closer
@@ -105,43 +105,45 @@ func CreateFile(wm WordMap, dictfile string) error {
 		return fmt.Errorf("could not write idx offset placeholder: %v", err)
 	}
 
-	idx := map[string]size{}
+	idx := map[string][]size{}
 	revidx := map[*Word]size{}
 	buf := new(bytes.Buffer)
-	for k, v := range wm {
-		if cur, ok := revidx[v]; ok {
-			idx[k] = cur
-			continue
+	for k, vs := range wm {
+		for _, v := range vs {
+			if cur, ok := revidx[v]; ok {
+				idx[k] = append(idx[k], cur)
+				continue
+			}
+
+			buf.Reset()
+
+			cur, err := f.Seek(0, io.SeekCurrent)
+			if err != nil {
+				return fmt.Errorf("could not get word offset: %v", err)
+			}
+
+			zw, err := zlib.NewWriterLevel(buf, zlib.BestCompression)
+			if err != nil {
+				return fmt.Errorf("could not compress word: %v", err)
+			}
+
+			if err := msgpack.NewEncoder(zw).Encode(v); err != nil {
+				return fmt.Errorf("could not encode word: %v", err)
+			}
+
+			zw.Close()
+
+			if err := size(buf.Len()).Write(f); err != nil {
+				return fmt.Errorf("could not write word size: %v", err)
+			}
+
+			if _, err := f.Write(buf.Bytes()); err != nil {
+				return fmt.Errorf("could not write word: %v", err)
+			}
+
+			idx[k] = append(idx[k], size(cur))
+			revidx[v] = size(cur)
 		}
-
-		buf.Reset()
-
-		cur, err := f.Seek(0, io.SeekCurrent)
-		if err != nil {
-			return fmt.Errorf("could not get word offset: %v", err)
-		}
-
-		zw, err := zlib.NewWriterLevel(buf, zlib.BestCompression)
-		if err != nil {
-			return fmt.Errorf("could not compress word: %v", err)
-		}
-
-		if err := msgpack.NewEncoder(zw).Encode(v); err != nil {
-			return fmt.Errorf("could not encode word: %v", err)
-		}
-
-		zw.Close()
-
-		if err := size(buf.Len()).Write(f); err != nil {
-			return fmt.Errorf("could not write word size: %v", err)
-		}
-
-		if _, err := f.Write(buf.Bytes()); err != nil {
-			return fmt.Errorf("could not write word: %v", err)
-		}
-
-		idx[k] = size(cur)
-		revidx[v] = size(cur)
 	}
 
 	idxoff, err := f.Seek(0, io.SeekCurrent)
@@ -199,12 +201,17 @@ func OpenFile(dictfile string) (*File, error) {
 		return nil, fmt.Errorf("could not open db: %v", err)
 	}
 
+	var isOldV5 bool
 	buf := make([]byte, len(FileVer))
 	_, err = d.df.Read(buf)
 	if err != nil {
 		return nil, fmt.Errorf("could not read version string: %v", err)
 	} else if !bytes.Equal(buf, []byte(FileVer)) {
-		return nil, fmt.Errorf("incompatible file versions: expected %#v, got %#v", FileVer, string(buf))
+		if bytes.Equal(buf, []byte("DICT5\x00")) {
+			isOldV5 = true
+		} else {
+			return nil, fmt.Errorf("incompatible file versions: expected %#v, got %#v", FileVer, string(buf))
+		}
 	}
 
 	var idxoff, idxsize size
@@ -222,8 +229,19 @@ func OpenFile(dictfile string) (*File, error) {
 	}
 	defer zr.Close()
 
-	if err := msgpack.NewDecoder(zr).Decode(&d.idx); err != nil {
-		return nil, fmt.Errorf("could not read idx: %v", err)
+	if isOldV5 {
+		var oidx map[string]size
+		if err := msgpack.NewDecoder(zr).Decode(&oidx); err != nil {
+			return nil, fmt.Errorf("could not read idx: %v", err)
+		}
+		d.idx = make(map[string][]size, len(oidx))
+		for w, o := range oidx {
+			d.idx[w] = []size{o}
+		}
+	} else {
+		if err := msgpack.NewDecoder(zr).Decode(&d.idx); err != nil {
+			return nil, fmt.Errorf("could not read idx: %v", err)
+		}
 	}
 
 	debug.FreeOSMemory()
@@ -235,10 +253,12 @@ func OpenFile(dictfile string) (*File, error) {
 // WARNING: Verify takes a few seconds to run.
 func (d *File) Verify() error {
 	for word, cur := range d.idx {
-		if w, err := d.get(cur); err != nil {
-			return fmt.Errorf("failed: %s@%d: %v", word, cur, err)
-		} else if w.Word == "" {
-			return fmt.Errorf("failed: %s@%d: empty word", word, cur)
+		for _, o := range cur {
+			if w, err := d.get(o); err != nil {
+				return fmt.Errorf("failed: %s#%d@%d: %v", word, o, cur, err)
+			} else if w.Word == "" {
+				return fmt.Errorf("failed: %s#%d@%d: empty word", word, o, cur)
+			}
 		}
 	}
 	debug.FreeOSMemory()
@@ -261,13 +281,29 @@ func (d *File) HasWord(word string) bool {
 
 // GetWord implements Store, and will return an error if the data structure
 // is invalid or the underlying files are inaccessible.
-func (d *File) GetWord(word string) (*Word, bool, error) {
+func (d *File) GetWords(word string) ([]*Word, bool, error) {
 	cur, ok := d.idx[word]
 	if !ok {
 		return nil, false, nil
 	}
-	w, err := d.get(cur)
-	return w, true, err
+	ws := make([]*Word, len(cur))
+	for i, o := range cur {
+		if w, err := d.get(o); err != nil {
+			return nil, true, fmt.Errorf("get %s#%d@%d", word, o, i)
+		} else {
+			ws[i] = w
+		}
+	}
+	return ws, true, nil
+}
+
+// GetWord is deprecated.
+func (d *File) GetWord(word string) (*Word, bool, error) {
+	ws, exists, err := d.GetWords(word)
+	if len(ws) == 0 {
+		return nil, exists, err
+	}
+	return ws[0], exists, err
 }
 
 // NumWords implements Store.
@@ -276,6 +312,11 @@ func (d *File) NumWords() int {
 }
 
 // Lookup is a shortcut for Lookup.
+func (d *File) LookupWord(word string) ([]*Word, bool, error) {
+	return LookupWord(d, word)
+}
+
+// Lookup is deprecated.
 func (d *File) Lookup(word string) (*Word, bool, error) {
 	return Lookup(d, word)
 }

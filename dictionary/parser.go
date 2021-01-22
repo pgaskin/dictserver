@@ -1,18 +1,17 @@
 package dictionary
 
 import (
-	"bufio"
 	"io"
 	"regexp"
 	"runtime/debug"
 	"strings"
 
-	"github.com/kljensen/snowball"
+	"github.com/pgaskin/dictutil/examples/webster1913-convert/webster1913"
 )
 
-// WordMap is an im-memory word Store used and returned by Parse. Although fast, it consumes huge
-// amounts of memory (~500 MB) and shouldn't be used if possible.
-type WordMap map[string]*Word
+// WordMap is an im-memory word Store used and returned by Parse. Although fast,
+// it consumes huge amounts of memory and shouldn't be used if possible.
+type WordMap map[string][]*Word
 
 // HasWord implements Store.
 func (wm WordMap) HasWord(word string) bool {
@@ -20,10 +19,19 @@ func (wm WordMap) HasWord(word string) bool {
 	return ok
 }
 
-// GetWord implements Store, but will never return an error.
+// GetWords implements Store, but will never return an error.
+func (wm WordMap) GetWords(word string) ([]*Word, bool, error) {
+	ws, ok := wm[word]
+	return ws, ok, nil
+}
+
+// GetWord is deprecated.
 func (wm WordMap) GetWord(word string) (*Word, bool, error) {
-	w, ok := wm[word]
-	return w, ok, nil
+	ws, exists, err := wm.GetWords(word)
+	if len(ws) == 0 {
+		return nil, exists, err
+	}
+	return ws[0], exists, err
 }
 
 // NumWords implements Store.
@@ -31,165 +39,60 @@ func (wm WordMap) NumWords() int {
 	return len(wm)
 }
 
-// Lookup is a shortcut for Lookup.
+// Lookup is deprecated.
 func (wm WordMap) Lookup(word string) (*Word, bool, error) {
 	return Lookup(wm, word)
 }
 
-// Regexps used by the parser.
-var (
-	defnCategoryRe = regexp.MustCompile(`^[0-9]+.\s*(\([^\) ]+\))\s*$`)
-	singleDefnRe   = regexp.MustCompile(`^Defn:\s*(.+)`)
-	defnRe         = regexp.MustCompile(`^[0-9]+.\s*(.+)`)
-	infoAndEtymRe  = regexp.MustCompile(`^(.+)\s*Etym:\s*(.+)\s*$`)
-	seeOtherRe     = regexp.MustCompile(`^\s*See ([A-Za-z]+)\.\s*$`)
-)
+// LookupWord is a shortcut for LookupWord.
+func (wm WordMap) LookupWord(word string) ([]*Word, bool, error) {
+	return LookupWord(wm, word)
+}
 
-// Parse parses Webster's Unabridged Dictionary of 1913 into a WordMap. It will
-// only return an error if the reader returns one. If the data is corrupt, the
-// results are undefined (but will be tried to be parsed as best as possible).
-// WARNING: Parse uses huge amounts of memory (~600 MB) and cpu time (~30s).
-func Parse(rd io.Reader) (WordMap, error) {
-	wm := WordMap{}
-	r := bufio.NewReader(rd)
+// Parse parses Webster's Unabridged Dictionary of 1913 into a WordMap. Note:
+// For dictserver > v1.3.1, this now uses the parser I implemented for dictutil
+// which is much more efficient and accurate.
+func Parse(r io.Reader) (WordMap, error) {
+	refRe := regexp.MustCompile(`See(?: under)? ([A-Z][a-z]+)\.`)
 
-	var i int
-	var s string
-	var w *Word
-	var err error
-	var temp string
-	for {
-		s, err = r.ReadString('\n')
-		if err == io.EOF {
-			err = nil
-			break
-		}
-		if err != nil {
-			break
-		}
-		s = strings.Trim(s, "\r\n\t ")
-
-		i++
-		if i%10000 == 0 {
-			debug.FreeOSMemory()
-		}
-
-		if len(s) > 0 && strings.ToUpper(s) == s { // Start of a word
-			if w != nil {
-				spl := strings.Split(temp, "\n")
-				state := "info"
-				for i, s := range spl {
-					if state == "defn-category" && defnRe.MatchString(s) { // Categories cannot contain numbered defns, only lettered.
-						state = ""
-					}
-					// Parse order is VERY important.
-					if state == "info" && s == "" { // Info is up to the first blank line.
-						if infoAndEtymRe.MatchString(w.Info) {
-							w.Etymology = infoAndEtymRe.FindStringSubmatch(w.Info)[2]
-							w.Info = infoAndEtymRe.FindStringSubmatch(w.Info)[1]
-						}
-						state = ""
-						continue
-					} else if state == "info" {
-						w.Info += s + " "
-						continue
-					} else if defnCategoryRe.MatchString(s) {
-						state = "defn-category" // Can contain single defn.
-						w.Meanings = append(w.Meanings, struct {
-							Text    string `json:"text,omitempty" msgpack:"t"`
-							Example string `json:"example,omitempty" msgpack:"e"`
-						}{Text: defnCategoryRe.FindStringSubmatch(s)[1]})
-						continue
-					} else if state == "defn-category" {
-						if singleDefnRe.MatchString(s) {
-							w.Meanings[len(w.Meanings)-1].Text += " " + singleDefnRe.FindStringSubmatch(s)[1]
-						} else {
-							if len(w.Meanings[len(w.Meanings)-1].Text) > 5 && len(spl[i-1]) < 55 && strings.HasSuffix(strings.TrimSpace(spl[i-1]), ".") && !strings.Contains(s, "Note: ") && !strings.Contains(s, "-- ") { // If last line (shorter than hard wrap) and ends with a dot.
-								state = "defn-example"
-								w.Meanings[len(w.Meanings)-1].Example = s
-							} else {
-								w.Meanings[len(w.Meanings)-1].Text += " " + s
-							}
-						}
-						continue
-					} else if defnRe.MatchString(s) {
-						state = "defn" // Contains text until blank line.
-						w.Meanings = append(w.Meanings, struct {
-							Text    string `json:"text,omitempty" msgpack:"t"`
-							Example string `json:"example,omitempty" msgpack:"e"`
-						}{Text: defnRe.FindStringSubmatch(s)[1]})
-						continue
-					} else if state == "defn" {
-						if len(w.Meanings[len(w.Meanings)-1].Text) > 5 && len(spl[i-1]) < 55 && strings.HasSuffix(strings.TrimSpace(spl[i-1]), ".") && !strings.Contains(s, "Note: ") && !strings.Contains(s, "-- ") { // If last line (shorter than hard wrap) and ends with a dot.
-							state = "defn-example"
-							w.Meanings[len(w.Meanings)-1].Example = s
-						} else {
-							w.Meanings[len(w.Meanings)-1].Text += " " + s
-						}
-						continue
-					} else if state == "defn-example" {
-						w.Meanings[len(w.Meanings)-1].Example += " " + s
-						continue
-					} else if singleDefnRe.MatchString(s) {
-						state = "single-defn" // Contains text until blank line.
-						w.Meanings = append(w.Meanings, struct {
-							Text    string `json:"text,omitempty" msgpack:"t"`
-							Example string `json:"example,omitempty" msgpack:"e"`
-						}{Text: singleDefnRe.FindStringSubmatch(s)[1]})
-						continue
-					} else if state == "single-defn" {
-						w.Meanings[len(w.Meanings)-1].Text += " " + s
-						continue
-					} else if s == "" {
-						continue
-					} else {
-						w.Extra += "\n" + s
-						continue
-					}
-				}
-
-				if _, e := wm[w.Word]; !e { // Don't overwrite after first definition
-					wm[w.Word] = w
-				} else {
-					// some words, like jump, have more than one entry
-					// TODO: a way to return multiple word entries for a word in v2
-					(*wm[w.Word]).Info = strings.TrimSpace(wm[w.Word].Info) + "; " + w.Info
-					(*wm[w.Word]).Meanings = append(wm[w.Word].Meanings, w.Meanings...)
-				}
-				for _, aw := range w.Alternates {
-					if _, e := wm[aw]; !e { // Don't overwrite after first definition
-						wm[aw] = w
-					}
-				}
-				if sw, err := snowball.Stem(w.Word, "english", false); err == nil {
-					if _, e := wm[sw]; !e { // Don't overwrite after first definition
-						wm[sw] = w
-					}
-				}
-			}
-
-			spl := strings.Split(strings.ToLower(s), ";")
-			w = &Word{Word: strings.TrimSpace(spl[0]), Alternates: []string{}, Credit: "Webster's Unabridged Dictionary (1913)"}
-			if len(spl) > 1 {
-				spl = spl[1:]
-				for _, alt := range spl {
-					w.Alternates = append(w.Alternates, strings.TrimSpace(alt))
-				}
-			}
-
-			temp = ""
-			continue
-		}
-
-		if w == nil {
-			continue
-		}
-
-		temp += s + "\n"
-		continue
-	}
+	d, err := webster1913.Parse(r, func(i int, w string) {})
 	if err != nil {
 		return nil, err
+	}
+
+	wm := WordMap{}
+	for _, e := range d {
+		w := &Word{}
+
+		w.Word = e.Headword
+		w.Etymology = e.Etymology
+		w.Info = e.Info
+		for _, d := range e.Meanings {
+			x := WordMeaning{
+				Text:    d.Text,
+				Example: d.Example,
+			}
+			for _, m := range refRe.FindAllStringSubmatch(d.Text, -1) {
+				x.ReferencedWords = append(x.ReferencedWords, strings.ToLower(m[1]))
+			}
+			w.Meanings = append(w.Meanings, x)
+		}
+		if len(e.PhraseDefns) != 0 {
+			w.Notes = append(w.Notes, strings.Join(e.PhraseDefns, "\u00A0\u00A0\u00A0"))
+		}
+		if len(e.Synonyms) != 0 {
+			w.Notes = append(w.Notes, strings.Join(e.Synonyms, "\u00A0\u00A0\u00A0"))
+		}
+		w.Extra = e.Extra
+		w.Credit = "Webster's Unabridged Dictionary (1913)"
+		for _, m := range refRe.FindAllStringSubmatch(e.Etymology, -1) {
+			w.ReferencedWords = append(w.ReferencedWords, strings.ToLower(m[1]))
+		}
+
+		wm[e.Headword] = append(wm[e.Headword], w)
+		for _, v := range e.Variant {
+			wm[v] = append(wm[v], w)
+		}
 	}
 
 	debug.FreeOSMemory()

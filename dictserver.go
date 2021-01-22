@@ -86,7 +86,7 @@ func handleAPI(w http.ResponseWriter, r *http.Request) {
 
 func handleWord(w http.ResponseWriter, r *http.Request) {
 	dict := r.Context().Value(ctxKey("dict")).(dictionary.Store)
-	word, exists, err := dict.Lookup(chi.URLParam(r, "word"))
+	words, exists, err := dict.LookupWord(chi.URLParam(r, "word"))
 
 	switch {
 	case err != nil:
@@ -100,9 +100,31 @@ func handleWord(w http.ResponseWriter, r *http.Request) {
 			fmt.Errorf("word not found"),
 		}.WriteTo(w, http.StatusNotFound)
 	default:
+		var obj struct {
+			*dictionary.Word
+			AdditionalWords []*dictionary.Word `json:"additional_words"` // words with the same headword (embedded rather than returning an array for backwards compatibility)
+			ReferencedWords []*dictionary.Word `json:"referenced_words"` // referenced words (for the entire word, not just meanings)
+		}
+
+		for i, w := range words {
+			if i == 0 {
+				obj.Word = w
+			} else {
+				obj.AdditionalWords = append(obj.AdditionalWords, w)
+			}
+			if len(w.ReferencedWords) != 0 {
+				for _, r := range w.ReferencedWords {
+					nw, exists, err := dict.GetWords(r)
+					if err == nil && exists {
+						obj.ReferencedWords = append(obj.ReferencedWords, nw...)
+					}
+				}
+			}
+		}
+
 		resp{
 			statusSuccess,
-			word,
+			obj,
 		}.WriteTo(w, http.StatusOK)
 	}
 }
