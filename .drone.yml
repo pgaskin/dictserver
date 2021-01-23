@@ -19,6 +19,8 @@ steps:
   image: golang:1.14-stretch
   commands:
   - go build -o dictserver -ldflags "-s -w -X main.version=$(git describe --tags --always)" .
+  depends_on:
+  - tags
 
 - name: test
   image: golang:1.14-stretch
@@ -37,7 +39,21 @@ steps:
   commands:
   - ./dictverify ./dict
   depends_on:
+  - build-tools
   - dictionary-parse
+
+- name: dictionary-download-v5
+  image: golang:1.14-stretch
+  commands:
+  - wget -O./dict.v5 https://github.com/pgaskin/dictserver/releases/download/v1.3.1/dict
+
+- name: dictionary-test-v5
+  image: golang:1.14-stretch
+  commands:
+  - ./dictverify ./dict.v5
+  depends_on:
+  - build-tools
+  - dictionary-download-v5
 
 - name: dictionary-upload
   image: golang:1.14-stretch
@@ -68,8 +84,8 @@ steps:
   - GOOS=darwin GOARCH=amd64 go build -o "./build/dictverify_darwin-x64" -ldflags "-s -w" "./tools/dictverify"
   - GOOS=darwin GOARCH=amd64 go build -o "./build/dictserver_darwin-x64" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
   depends_on:
-  - dictionary-test
-  - build-server
+  - tags
+  - dictionary-parse
 
 - name: release
   image: plugins/github-release
@@ -80,4 +96,6 @@ steps:
   when:
     event: tag
   depends_on:
+  - dictionary-test
+  - dictionary-test-v5
   - build-cross
