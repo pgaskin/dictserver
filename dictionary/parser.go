@@ -63,6 +63,9 @@ func Parse(r io.Reader) (WordMap, error) {
 	}
 
 	wm := WordMap{}
+	wx := map[*webster1913.Entry]*Word{}
+
+	// add headwords
 	for _, e := range d {
 		w := &Word{}
 
@@ -92,9 +95,20 @@ func Parse(r io.Reader) (WordMap, error) {
 		}
 
 		wm[e.Headword] = append(wm[e.Headword], w)
+		wx[e] = w
+		for _, v := range e.Variant {
+			w.Alternates = append(w.Alternates, v)
+		}
+	}
+
+	// link variants (we do this separately so the primary entry for a headword always appears first; e.g. 'where' would show 'wher' first if we didn't do this)
+	for _, e := range d {
+		w, ok := wx[e]
+		if !ok {
+			panic("impossible")
+		}
 		for _, v := range e.Variant {
 			wm[v] = append(wm[v], w) // this will never result in duplicates since we parse the headwords from start to end and each headword in the file is a unique entry
-			w.Alternates = append(w.Alternates, v)
 		}
 	}
 
