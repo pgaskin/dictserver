@@ -10,7 +10,9 @@ import (
 )
 
 // WordMap is an im-memory word Store used and returned by Parse. Although fast,
-// it consumes huge amounts of memory and shouldn't be used if possible.
+// it consumes huge amounts of memory and shouldn't be used if possible. It is
+// up to the creator to ensure there aren't duplicate references to entries for
+// headwords.
 type WordMap map[string][]*Word
 
 // HasWord implements Store.
@@ -91,7 +93,7 @@ func Parse(r io.Reader) (WordMap, error) {
 
 		wm[e.Headword] = append(wm[e.Headword], w)
 		for _, v := range e.Variant {
-			wm[v] = append(wm[v], w)
+			wm[v] = append(wm[v], w) // this will never result in duplicates since we parse the headwords from start to end and each headword in the file is a unique entry
 			w.Alternates = append(w.Alternates, v)
 		}
 	}

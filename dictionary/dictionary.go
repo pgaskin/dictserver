@@ -9,7 +9,8 @@ import (
 	"github.com/kljensen/snowball"
 )
 
-// Store is a backend for storing dictionary entries.
+// Store is a backend for storing dictionary entries. Implementations should not
+// return duplicate entries, but it is not a bug to do so.
 type Store interface {
 	// NumWords returns the number of words in the Store.
 	NumWords() int

@@ -62,6 +62,9 @@ const FileVer = "DICT6\x00" // note: can currently handle "DICT5\x00" too
 // 8. The file is seeked to the beginning plus the length of FileVer.
 // 9. The idx offset is written.
 //
+// It is up to the creator to ensure there aren't duplicate references to
+// entries for headwords in the index. If duplicates are found, they will be
+// returned as-is.
 type File struct {
 	idx map[string][]size
 	df  interface {
