@@ -9,7 +9,7 @@ import (
 	"github.com/pgaskin/dictutil/examples/webster1913-convert/webster1913"
 )
 
-// WordMap is an im-memory word Store used and returned by Parse. Although fast,
+// WordMap is an in-memory word Store used and returned by Parse. Although fast,
 // it consumes huge amounts of memory and shouldn't be used if possible. It is
 // up to the creator to ensure there aren't duplicate references to entries for
 // headwords.

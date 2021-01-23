@@ -23,13 +23,13 @@ const FileVer = "DICT6\x00" // note: can currently handle "DICT5\x00" too
 //
 // The dict file is stored in the following format:
 //
-//   +-----------+--------------+-----------------------------------------------+------------+---------------------------------------------------+
-//   |           |              |  +------+------------------------------+      |            |                                                   |
+//   + --------- + ------------ + --------------------------------------------- + ---------- + ------------------------------------------------- +
+//   |           |              |  + ---- + ---------------------------- +      |            |                                                   |
 //   |  FileVer  |  idx offset  |  | size | zlib compressed Word msgpack | ...  |  idx size  |  zlib compressed idx map[string][]offset msgpack  |
-//   |           |              |  +------+------------------------------+      |            |                                                   |
-//   +-----------+--------------+-----------------------------------------------+------------+---------------------------------------------------+
+//   |           |              |  + =================================== +      |            |                                                   |
+//   + --------- + ------------ + --------------------------------------------- + ============================================================== +
 //
-//   All sizes and offsets are little-endian int64.
+//   All sizes and offsets are little-endian int64. All sizes are the size of the size plus the data.
 //
 // The file is opened using the following steps:
 //
@@ -37,7 +37,7 @@ const FileVer = "DICT6\x00" // note: can currently handle "DICT5\x00" too
 // 2. The idx offset is read.
 // 3. The file is seeked to the beginning plus the idx offset.
 // 4. The idx size is read.
-// 5. The bytes for the idx are decompressed using zlib, and the resulting msgpack is decoded into an in-memory map[string]int64 of the words to offsets.
+// 5. The bytes for the idx are decompressed using zlib, and the resulting msgpack is decoded into an in-memory map[string][]int64 of the words to offsets.
 //
 // To read a word:
 //
@@ -46,21 +46,7 @@ const FileVer = "DICT6\x00" // note: can currently handle "DICT5\x00" too
 // 4. The size of the compressed word is read.
 // 5. The bytes for the word are decompressed using zlib, and the resulting msgpack is decoded into an in-memory *Word.
 //
-// To create the file:
-// 1. The FileVer is written.
-// 2. A placeholder for the idx offset is written.
-// 3. The dictionary map is looped over:
-//    a. If the referenced Word has already been written, it is skipped.
-//    b. The Word is encoded with msgpack, compressed and written to a temporary buf.
-//    c. The size is written.
-//    d. The buf is written and reset.
-// 5. The current offset is stored for the idx offset.
-// 4. A placeholder for the idx size is written.
-// 5. The idx is encoded with msgpack, compressed, and written.
-// 6. The idx size is calculated by subtracting the idx offset and the size of the idx size from the current offset.
-// 7. The file is seeked to the idx offset and the idx size is written.
-// 8. The file is seeked to the beginning plus the length of FileVer.
-// 9. The idx offset is written.
+// For more details, see the source code.
 //
 // It is up to the creator to ensure there aren't duplicate references to
 // entries for headwords in the index. If duplicates are found, they will be
@@ -100,94 +86,128 @@ func CreateFile(wm WordMap, dictfile string) error {
 	defer f.Sync()
 	defer f.Close()
 
-	if _, err := f.WriteString(FileVer); err != nil {
-		return fmt.Errorf("could not write version string: %v", err)
+	// data
+
+	var verendoff int64
+	if _, err := f.Write(make([]byte, len(FileVer))); err != nil {
+		return fmt.Errorf("could not write version placeholder: %v", err)
+	} else if verendoff, err = f.Seek(0, io.SeekCurrent); err != nil {
+		return fmt.Errorf("could not get version end offset: %v", err)
+	} else if verendoff-int64(len(FileVer)) != 0 {
+		panic("bug: incorrect verendoff")
 	}
 
+	var idxoffendoff int64
 	if err := size(0).Write(f); err != nil {
 		return fmt.Errorf("could not write idx offset placeholder: %v", err)
+	} else if idxoffendoff, err = f.Seek(0, io.SeekCurrent); err != nil {
+		return fmt.Errorf("could not get idx offset end offset: %v", err)
+	} else if idxoffendoff-sizew != verendoff {
+		panic("bug: incorrect idxoffendoff")
 	}
 
+	var dataendoff int64
 	idx := map[string][]size{}
-	revidx := map[*Word]size{}
-	buf := new(bytes.Buffer)
-	for k, vs := range wm {
-		for _, v := range vs {
-			if cur, ok := revidx[v]; ok {
-				idx[k] = append(idx[k], cur)
-				continue
+	if err := func() error {
+		var wordendoff int64 = idxoffendoff
+		var t int64 // for testing
+		rev := map[*Word]size{}
+		for k, ws := range wm {
+			for _, w := range ws {
+				if wordoff, ok := rev[w]; ok {
+					idx[k] = append(idx[k], wordoff)
+					continue
+				}
+				rev[w] = size(wordendoff)
+				idx[k] = append(idx[k], rev[w])
+
+				x, err := f.Seek(0, io.SeekCurrent) // for testing
+				if err != nil {
+					return fmt.Errorf("could not word start offset: %v", err)
+				}
+
+				if err = size(0).Write(f); err != nil {
+					return fmt.Errorf("could not get word size placeholder: %v", err)
+				} else if zw, err := zlib.NewWriterLevel(f, zlib.BestCompression); err != nil {
+					return fmt.Errorf("could not compress word: %v", err)
+				} else if err = msgpack.NewEncoder(zw).Encode(w); err != nil {
+					return fmt.Errorf("could not encode word: %v", err)
+				} else if err = zw.Close(); err != nil {
+					return fmt.Errorf("could not compress word: %v", err)
+				} else if wordendoff, err = f.Seek(0, io.SeekCurrent); err != nil {
+					return fmt.Errorf("could not get word end offset: %v", err)
+				}
+
+				t += wordendoff - x // for testing
+
+				if _, err := f.Seek(int64(rev[w]), io.SeekStart); err != nil {
+					return fmt.Errorf("could not seek to word size placeholder: %v", err)
+				} else if err := size(wordendoff - int64(rev[w])).Write(f); err != nil {
+					return fmt.Errorf("could not write word size: %v", err)
+				} else if wordendoff-t != idxoffendoff {
+					panic("bug: incorrect wordendoff")
+				}
+
+				if _, err := f.Seek(wordendoff, io.SeekStart); err != nil {
+					return fmt.Errorf("could not seek to end of current word: %v", err)
+				}
 			}
-
-			buf.Reset()
-
-			cur, err := f.Seek(0, io.SeekCurrent)
-			if err != nil {
-				return fmt.Errorf("could not get word offset: %v", err)
-			}
-
-			zw, err := zlib.NewWriterLevel(buf, zlib.BestCompression)
-			if err != nil {
-				return fmt.Errorf("could not compress word: %v", err)
-			}
-
-			if err := msgpack.NewEncoder(zw).Encode(v); err != nil {
-				return fmt.Errorf("could not encode word: %v", err)
-			}
-
-			zw.Close()
-
-			if err := size(buf.Len()).Write(f); err != nil {
-				return fmt.Errorf("could not write word size: %v", err)
-			}
-
-			if _, err := f.Write(buf.Bytes()); err != nil {
-				return fmt.Errorf("could not write word: %v", err)
-			}
-
-			idx[k] = append(idx[k], size(cur))
-			revidx[v] = size(cur)
 		}
+		dataendoff = idxoffendoff + t
+		return nil
+	}(); err != nil {
+		return fmt.Errorf("could not write data: %v", err)
+	} else if x, err := f.Seek(0, io.SeekCurrent); err != nil {
+		return fmt.Errorf("could not get data end offset: %v", err)
+	} else if dataendoff != x {
+		panic("bug: incorrect dataendoff")
 	}
 
-	idxoff, err := f.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return fmt.Errorf("could not get idx offset: %v", err)
-	}
-
+	var idxendoff int64
 	if err := size(0).Write(f); err != nil {
 		return fmt.Errorf("could not write idx size placeholder: %v", err)
-	}
-
-	zw, err := zlib.NewWriterLevel(f, zlib.BestCompression)
-	if err != nil {
+	} else if zw, err := zlib.NewWriterLevel(f, zlib.BestCompression); err != nil {
 		return fmt.Errorf("could not compress idx: %v", err)
-	}
-
-	if err := msgpack.NewEncoder(zw).SortMapKeys(false).UseCompactEncoding(true).Encode(idx); err != nil {
+	} else if err = msgpack.NewEncoder(zw).SortMapKeys(false).UseCompactEncoding(true).Encode(idx); err != nil {
 		return fmt.Errorf("could not encode idx: %v", err)
+	} else if err = zw.Close(); err != nil {
+		return fmt.Errorf("could not compress idx: %v", err)
+	} else if idxendoff, err = f.Seek(0, io.SeekCurrent); err != nil {
+		return fmt.Errorf("could not get idx end offset: %v", err)
+	} else if idxendoff-dataendoff <= sizew {
+		panic("bug: incorrect idxendoff")
 	}
 
-	zw.Close() // must be called here before the seek
+	// offsets/sizes/version
 
-	idxendoff, err := f.Seek(0, io.SeekCurrent)
-	if err != nil {
-		return fmt.Errorf("could not get current offset: %v", err)
+	if _, err := f.Seek(int64(verendoff), io.SeekStart); err != nil {
+		return fmt.Errorf("could not seek to idx offset placeholder: %v", err)
+	} else if err = size(dataendoff).Write(f); err != nil {
+		return fmt.Errorf("could not write idx offset: %v", err)
 	}
 
-	if _, err := f.Seek(idxoff, io.SeekStart); err != nil {
+	_ = dataendoff - idxoffendoff // word offsets in the data section were written earlier
+
+	if _, err := f.Seek(dataendoff, io.SeekStart); err != nil {
 		return fmt.Errorf("could not seek to idx size placeholder: %v", err)
-	}
-
-	if err := size(idxendoff - idxoff).Write(f); err != nil {
+	} else if err = size(idxendoff - dataendoff).Write(f); err != nil {
 		return fmt.Errorf("could not write idx size: %v", err)
 	}
 
-	if _, err := f.Seek(int64(len([]byte(FileVer))), io.SeekStart); err != nil {
-		return fmt.Errorf("could not seek to idx offset placeholder: %v", err)
+	if _, err := f.Seek(0, io.SeekStart); err != nil {
+		return fmt.Errorf("could not seek to version placeholder: %v", err)
+	} else if _, err = f.WriteString(FileVer); err != nil {
+		return fmt.Errorf("could not write version: %v", err)
 	}
 
-	if err := size(idxoff).Write(f); err != nil {
-		return fmt.Errorf("could not write idx offset: %v", err)
+	// cleanup
+
+	if err := f.Sync(); err != nil {
+		return fmt.Errorf("could not write file: %v", err)
+	}
+
+	if err := f.Close(); err != nil {
+		return fmt.Errorf("could not write file: %v", err)
 	}
 
 	return nil
@@ -204,17 +224,19 @@ func OpenFile(dictfile string) (*File, error) {
 		return nil, fmt.Errorf("could not open db: %v", err)
 	}
 
-	var isOldV5 bool
+	var compat int
 	buf := make([]byte, len(FileVer))
 	_, err = d.df.Read(buf)
 	if err != nil {
 		return nil, fmt.Errorf("could not read version string: %v", err)
-	} else if !bytes.Equal(buf, []byte(FileVer)) {
-		if bytes.Equal(buf, []byte("DICT5\x00")) {
-			isOldV5 = true
-		} else {
-			return nil, fmt.Errorf("incompatible file versions: expected %#v, got %#v", FileVer, string(buf))
-		}
+	} else if bytes.Equal(buf, []byte(FileVer)) {
+		compat = 6
+	} else if bytes.Equal(buf, []byte("DICT5\x00")) {
+		compat = 5
+	} else if bytes.Equal(buf, []byte("\x00\x00\x00\x00\x00\x00")) {
+		return nil, fmt.Errorf("incomplete file version: did it create successfully?")
+	} else {
+		return nil, fmt.Errorf("incompatible file versions: expected %#v, got %#v", FileVer, string(buf))
 	}
 
 	var idxoff, idxsize size
@@ -226,13 +248,17 @@ func OpenFile(dictfile string) (*File, error) {
 		return nil, fmt.Errorf("could not read idx size: %v", err)
 	}
 
-	zr, err := zlib.NewReader(io.NewSectionReader(d.df, int64(idxoff)+sizew, int64(idxsize)))
+	zr, err := zlib.NewReader(io.NewSectionReader(d.df, int64(idxoff)+sizew, int64(idxsize)-sizew))
 	if err != nil {
 		return nil, fmt.Errorf("could not decompress idx: %v", err)
 	}
 	defer zr.Close()
 
-	if isOldV5 {
+	if compat >= 6 {
+		if err := msgpack.NewDecoder(zr).Decode(&d.idx); err != nil {
+			return nil, fmt.Errorf("could not read idx: %v", err)
+		}
+	} else {
 		var oidx map[string]size
 		if err := msgpack.NewDecoder(zr).Decode(&oidx); err != nil {
 			return nil, fmt.Errorf("could not read idx: %v", err)
@@ -240,10 +266,6 @@ func OpenFile(dictfile string) (*File, error) {
 		d.idx = make(map[string][]size, len(oidx))
 		for w, o := range oidx {
 			d.idx[w] = []size{o}
-		}
-	} else {
-		if err := msgpack.NewDecoder(zr).Decode(&d.idx); err != nil {
-			return nil, fmt.Errorf("could not read idx: %v", err)
 		}
 	}
 
