@@ -353,5 +353,23 @@ See the dictionary folder for usage as a Go library and the parsing code. The li
 
 **Sample** https://dict.geek1011.net/word/nonexistent-word
 
-Will return a 404 error. The response body may change in the future (it will
-either be an error or a success with `[]` as the result).
+When no entries are found for a word, a 404 error (for backwards compatibility)
+will be returned along with the following body:
+
+```json
+{
+    "status": "success",
+    "result": []
+}
+```
+
+Note that for an internal server error, a 500 response code will be returned
+along with a response body like:
+
+```json
+{
+    "status": "error",
+    "result": "the error message..."
+}
+```
+

@@ -92,12 +92,12 @@ func handleWord(w http.ResponseWriter, r *http.Request) {
 	case err != nil:
 		resp{
 			statusError,
-			fmt.Errorf("error looking up word: %v", err),
+			fmt.Sprintf("failed to look up word: %v", err),
 		}.WriteTo(w, http.StatusInternalServerError)
 	case !exists:
 		resp{
-			statusError,
-			fmt.Errorf("word not found"),
+			statusSuccess,
+			[]*dictionary.Word{},
 		}.WriteTo(w, http.StatusNotFound)
 	default:
 		var obj struct {
