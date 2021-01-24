@@ -7,6 +7,8 @@ import (
 	"github.com/pgaskin/dictserver/dictionary"
 )
 
+var version = "dev"
+
 func main() {
 	var txt, dictfile string
 	switch len(os.Args) {

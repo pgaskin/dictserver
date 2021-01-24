@@ -11,14 +11,14 @@ steps:
   image: golang:1.14-stretch
   commands:
   - go mod download
-  - go build -o dictlookup ./tools/dictlookup
-  - go build -o dictparse ./tools/dictparse
-  - go build -o dictverify ./tools/dictverify
+  - go build ./tools/dictlookup
+  - go build ./tools/dictparse
+  - go build ./tools/dictverify
 
 - name: build-server
   image: golang:1.14-stretch
   commands:
-  - go build -o dictserver -ldflags "-s -w -X main.version=$(git describe --tags --always)" .
+  - go build .
   depends_on:
   - tags
 
@@ -55,34 +55,27 @@ steps:
   - build-tools
   - dictionary-download-v5
 
-- name: dictionary-upload
-  image: golang:1.14-stretch
-  commands:
-  - curl --upload-file ./dict https://transfer.sh/dict
-  depends_on:
-  - dictionary-test
-
 - name: build-cross
   image: golang:1.14-stretch
   commands:
   - mkdir build
   - cp ./dict ./build/
-  - GOOS=linux GOARCH=amd64 go build -o "./build/dictlookup_linux-x64" -ldflags "-s -w" "./tools/dictlookup"
-  - GOOS=linux GOARCH=amd64 go build -o "./build/dictparse_linux-x64" -ldflags "-s -w" "./tools/dictparse"
-  - GOOS=linux GOARCH=amd64 go build -o "./build/dictverify_linux-x64" -ldflags "-s -w" "./tools/dictverify"
-  - GOOS=linux GOARCH=amd64 go build -o "./build/dictserver_linux-x64" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
-  - GOOS=linux GOARCH=arm go build -o "./build/dictlookup_linux-arm" -ldflags "-s -w" "./tools/dictlookup"
-  - GOOS=linux GOARCH=arm go build -o "./build/dictparse_linux-arm" -ldflags "-s -w" "./tools/dictparse"
-  - GOOS=linux GOARCH=arm go build -o "./build/dictverify_linux-arm" -ldflags "-s -w" "./tools/dictverify"
-  - GOOS=linux GOARCH=arm go build -o "./build/dictserver_linux-arm" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
-  - GOOS=windows GOARCH=amd64 go build -o "./build/dictlookup_windows.exe" -ldflags "-s -w" "./tools/dictlookup"
-  - GOOS=windows GOARCH=amd64 go build -o "./build/dictparse_windows.exe" -ldflags "-s -w" "./tools/dictparse"
-  - GOOS=windows GOARCH=amd64 go build -o "./build/dictverify_windows.exe" -ldflags "-s -w" "./tools/dictverify"
+  - GOOS=linux   GOARCH=amd64 go build -o "./build/dictlookup_linux-x64"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictlookup"
+  - GOOS=linux   GOARCH=amd64 go build -o "./build/dictparse_linux-x64"    -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictparse"
+  - GOOS=linux   GOARCH=amd64 go build -o "./build/dictverify_linux-x64"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictverify"
+  - GOOS=linux   GOARCH=amd64 go build -o "./build/dictserver_linux-x64"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
+  - GOOS=linux   GOARCH=arm   go build -o "./build/dictlookup_linux-arm"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictlookup"
+  - GOOS=linux   GOARCH=arm   go build -o "./build/dictparse_linux-arm"    -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictparse"
+  - GOOS=linux   GOARCH=arm   go build -o "./build/dictverify_linux-arm"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictverify"
+  - GOOS=linux   GOARCH=arm   go build -o "./build/dictserver_linux-arm"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictlookup_windows.exe" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictlookup"
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictparse_windows.exe"  -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictparse"
+  - GOOS=windows GOARCH=amd64 go build -o "./build/dictverify_windows.exe" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictverify"
   - GOOS=windows GOARCH=amd64 go build -o "./build/dictserver_windows.exe" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
-  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictlookup_darwin-x64" -ldflags "-s -w" "./tools/dictlookup"
-  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictparse_darwin-x64" -ldflags "-s -w" "./tools/dictparse"
-  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictverify_darwin-x64" -ldflags "-s -w" "./tools/dictverify"
-  - GOOS=darwin GOARCH=amd64 go build -o "./build/dictserver_darwin-x64" -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
+  - GOOS=darwin  GOARCH=amd64 go build -o "./build/dictlookup_darwin-x64"  -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictlookup"
+  - GOOS=darwin  GOARCH=amd64 go build -o "./build/dictparse_darwin-x64"   -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictparse"
+  - GOOS=darwin  GOARCH=amd64 go build -o "./build/dictverify_darwin-x64"  -ldflags "-s -w -X main.version=$(git describe --tags --always)" "./tools/dictverify"
+  - GOOS=darwin  GOARCH=amd64 go build -o "./build/dictserver_darwin-x64"  -ldflags "-s -w -X main.version=$(git describe --tags --always)" "."
   depends_on:
   - tags
   - dictionary-parse

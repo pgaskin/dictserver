@@ -12,7 +12,7 @@ import (
 	"github.com/spf13/pflag"
 )
 
-var version = "v2.0.0-dev"
+var version = "dev"
 
 type ctxKey string
 
