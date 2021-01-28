@@ -35,21 +35,21 @@ type Store interface {
 
 // Word represents a word.
 type Word struct {
-	Word            string        `json:"word,omitempty" msgpack:"w"`
-	Alternates      []string      `json:"alternates,omitempty" msgpack:"a"`
-	Info            string        `json:"info,omitempty" msgpack:"i"`
-	Etymology       string        `json:"etymology,omitempty" msgpack:"e"`
-	Meanings        []WordMeaning `json:"meanings,omitempty" msgpack:"m"`
-	Notes           []string      `json:"notes,omitempty" msgpack:"n"`
-	Extra           string        `json:"extra,omitempty" msgpack:"x"`
-	Credit          string        `json:"credit,omitempty" msgpack:"c"`
-	ReferencedWords []string      `json:"referenced_words" msgpack:"r"` // note: this does not include words referenced within meanings
+	Word            string        `json:"word,omitempty" diskstore:"w"`
+	Alternates      []string      `json:"alternates,omitempty" diskstore:"a"`
+	Info            string        `json:"info,omitempty" diskstore:"i"`
+	Etymology       string        `json:"etymology,omitempty" diskstore:"e"`
+	Meanings        []WordMeaning `json:"meanings,omitempty" diskstore:"m"`
+	Notes           []string      `json:"notes,omitempty" diskstore:"n"`
+	Extra           string        `json:"extra,omitempty" diskstore:"x"`
+	Credit          string        `json:"credit,omitempty" diskstore:"c"`
+	ReferencedWords []string      `json:"referenced_words" diskstore:"r"` // note: this does not include words referenced within meanings
 }
 
 type WordMeaning struct {
-	Text            string   `json:"text,omitempty" msgpack:"t"`
-	Example         string   `json:"example,omitempty" msgpack:"e"`
-	ReferencedWords []string `json:"referenced_words" msgpack:"r"`
+	Text            string   `json:"text,omitempty" diskstore:"t"`
+	Example         string   `json:"example,omitempty" diskstore:"e"`
+	ReferencedWords []string `json:"referenced_words" diskstore:"r"`
 }
 
 // Lookup looks up the first entry for a word in the dictionary (deprecated). It

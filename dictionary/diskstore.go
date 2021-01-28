@@ -130,7 +130,11 @@ func CreateFile(wm WordMap, dictfile string) error {
 					return fmt.Errorf("could not get word size placeholder: %v", err)
 				} else if zw, err := zlib.NewWriterLevel(f, zlib.BestCompression); err != nil {
 					return fmt.Errorf("could not compress word: %v", err)
-				} else if err = msgpack.NewEncoder(zw).Encode(w); err != nil {
+				} else if err = func() error {
+					e := msgpack.NewEncoder(zw)
+					e.SetCustomStructTag("diskstore")
+					return e.Encode(w)
+				}(); err != nil {
 					return fmt.Errorf("could not encode word: %v", err)
 				} else if err = zw.Close(); err != nil {
 					return fmt.Errorf("could not compress word: %v", err)
@@ -170,6 +174,7 @@ func CreateFile(wm WordMap, dictfile string) error {
 		return fmt.Errorf("could not compress idx: %v", err)
 	} else if err = func() error {
 		e := msgpack.NewEncoder(zw)
+		e.SetCustomStructTag("diskstore")
 		e.SetSortMapKeys(false)
 		e.UseCompactInts(true)
 		return e.Encode(idx)
@@ -260,12 +265,20 @@ func OpenFile(dictfile string) (*File, error) {
 	defer zr.Close()
 
 	if compat >= 6 {
-		if err := msgpack.NewDecoder(zr).Decode(&d.idx); err != nil {
+		if err := func() error {
+			c := msgpack.NewDecoder(zr)
+			c.SetCustomStructTag("diskstore")
+			return c.Decode(&d.idx)
+		}(); err != nil {
 			return nil, fmt.Errorf("could not read idx: %v", err)
 		}
 	} else {
 		var oidx map[string]size
-		if err := msgpack.NewDecoder(zr).Decode(&oidx); err != nil {
+		if err := func() error {
+			c := msgpack.NewDecoder(zr)
+			c.SetCustomStructTag("diskstore")
+			return c.Decode(&oidx)
+		}(); err != nil {
 			return nil, fmt.Errorf("could not read idx: %v", err)
 		}
 		d.idx = make(map[string][]size, len(oidx))
@@ -365,7 +378,11 @@ func (d *File) get(cur size) (*Word, error) {
 	defer zr.Close()
 
 	var w Word
-	if err := msgpack.NewDecoder(zr).Decode(&w); err != nil {
+	if err := func() error {
+		c := msgpack.NewDecoder(zr)
+		c.SetCustomStructTag("diskstore")
+		return c.Decode(&w)
+	}(); err != nil {
 		return nil, fmt.Errorf("could not read msgpack: %v", err)
 	}
 
