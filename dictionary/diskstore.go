@@ -9,7 +9,7 @@ import (
 	"os"
 	"runtime/debug"
 
-	"github.com/vmihailenco/msgpack/v4"
+	"github.com/vmihailenco/msgpack/v5"
 )
 
 // FileVer is the current compatibility level of saved Files.
@@ -168,7 +168,12 @@ func CreateFile(wm WordMap, dictfile string) error {
 		return fmt.Errorf("could not write idx size placeholder: %v", err)
 	} else if zw, err := zlib.NewWriterLevel(f, zlib.BestCompression); err != nil {
 		return fmt.Errorf("could not compress idx: %v", err)
-	} else if err = msgpack.NewEncoder(zw).SortMapKeys(false).UseCompactEncoding(true).Encode(idx); err != nil {
+	} else if err = func() error {
+		e := msgpack.NewEncoder(zw)
+		e.SetSortMapKeys(false)
+		e.UseCompactInts(true)
+		return e.Encode(idx)
+	}(); err != nil {
 		return fmt.Errorf("could not encode idx: %v", err)
 	} else if err = zw.Close(); err != nil {
 		return fmt.Errorf("could not compress idx: %v", err)
@@ -350,18 +355,18 @@ func (d *File) Lookup(word string) (*Word, bool, error) {
 func (d *File) get(cur size) (*Word, error) {
 	var n int64
 	if err := binary.Read(io.NewSectionReader(d.df, int64(cur), int64(binary.Size(n))), binary.LittleEndian, &n); err != nil {
-		return nil, fmt.Errorf("could not get gob length: %v", err)
+		return nil, fmt.Errorf("could not get msgpack length: %v", err)
 	}
 
 	zr, err := zlib.NewReader(io.NewSectionReader(d.df, int64(cur)+sizew, n))
 	if err != nil {
-		return nil, fmt.Errorf("could not decompress gob: %v", err)
+		return nil, fmt.Errorf("could not decompress msgpack: %v", err)
 	}
 	defer zr.Close()
 
 	var w Word
 	if err := msgpack.NewDecoder(zr).Decode(&w); err != nil {
-		return nil, fmt.Errorf("could not read gob: %v", err)
+		return nil, fmt.Errorf("could not read msgpack: %v", err)
 	}
 
 	return &w, nil
