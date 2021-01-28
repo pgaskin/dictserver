@@ -4,9 +4,13 @@ package dictionary
 
 import (
 	"fmt"
+	"regexp"
 	"strings"
+	"unicode"
 
 	"github.com/kljensen/snowball"
+	"golang.org/x/text/transform"
+	"golang.org/x/text/unicode/norm"
 )
 
 // Store is a backend for storing dictionary entries. Implementations should not
@@ -49,7 +53,7 @@ type WordMeaning struct {
 }
 
 // Lookup looks up the first entry for a word in the dictionary (deprecated). It
-// applies stemming to the word if no direct match is found.
+// applies normalization and stemming to the word if no direct match is found.
 func Lookup(store Store, word string) (*Word, bool, error) {
 	ws, exists, err := LookupWord(store, word)
 	if len(ws) == 0 {
@@ -58,28 +62,89 @@ func Lookup(store Store, word string) (*Word, bool, error) {
 	return ws[0], exists, err
 }
 
-// LookupWord looks up a word in the dictionary. It applies stemming to the word
-// if no direct match is found.
+var (
+	normSpaceRe     = regexp.MustCompile(`\s+`)
+	normDashRe      = regexp.MustCompile(`\p{Pd}`)
+	normADashRe     = regexp.MustCompile(`-+`)
+	normOpenCloseRe = regexp.MustCompile(`^(?:\p{Pi}|\p{Ps}|["'])+|(?:\p{Pf}|\p{Pe}|["'])+$`)
+	normTransform   = transform.Chain(norm.NFD, transform.RemoveFunc(func(r rune) bool {
+		return unicode.Is(unicode.Mn, r)
+	}), norm.NFC)
+)
+
+// LookupWord looks up a word in the dictionary. It applies normalization and
+// stemming to the word if no direct match is found.
 func LookupWord(store Store, word string) ([]*Word, bool, error) {
 	var err error
 
-	ws := strings.ToLower(strings.TrimSpace(word))
-	if !store.HasWord(ws) {
-		ws, err = snowball.Stem(strings.ToLower(word), "english", true)
-		if err != nil {
-			return nil, false, fmt.Errorf("could not stem word: %v", err) // this should never happen
+	ws := word
+
+	for a := 0; a < 2; a++ {
+		// trim leading and trailing spaces
+		if ws = strings.ToLower(strings.TrimSpace(word)); store.HasWord(ws) {
+			goto found
 		}
-		if !store.HasWord(ws) {
-			ws = strings.TrimRight(strings.ToLower(word), "s") // sometimes stemming removes too much, just need to remove the plural
-			if !store.HasWord(ws) {
-				ws = strings.Replace(strings.Replace(strings.ToLower(word), "ing", "", 1), "ly", "", 1)
-				if !store.HasWord(ws) {
-					return nil, false, nil
+
+		// collapse all whitespace into a single space
+		if ws = normSpaceRe.ReplaceAllLiteralString(ws, " "); store.HasWord(ws) {
+			goto found
+		}
+
+		// trim leading and trailing opening/closing punctuation
+		if ws = normOpenCloseRe.ReplaceAllLiteralString(ws, ""); store.HasWord(ws) {
+			goto found
+		}
+
+		// replace all unicode dash-like characters with a dash
+		if ws = normDashRe.ReplaceAllLiteralString(ws, "-"); store.HasWord(ws) {
+			goto found
+		}
+
+		// collapse multiple dashes
+		if ws = normADashRe.ReplaceAllLiteralString(ws, "-"); store.HasWord(ws) {
+			goto found
+		}
+
+		for b := 0; b < 2; b++ {
+			// stem
+			if wst, err := snowball.Stem(ws, "english", true); err == nil && store.HasWord(wst) {
+				ws = wst
+				goto found
+			}
+
+			// sometimes stemming removes too much
+			if wst := strings.TrimRight(ws, "s"); store.HasWord(wst) {
+				ws = wst
+				goto found
+			}
+
+			// sometimes stemming removes too much
+			if wst := strings.TrimSuffix(strings.TrimSuffix(ws, "ly"), "ing"); store.HasWord(ws) {
+				ws = wst
+				goto found
+			}
+
+			// try again, but fold all unicode chars into their bases
+			if b == 0 {
+				if ws, _, err = transform.String(normTransform, ws); err != nil {
+					break
+				} else if store.HasWord(ws) {
+					goto found
 				}
+			}
+		}
+
+		// try again, but remove dashes
+		if a == 0 {
+			if ws = strings.Replace(ws, "-", "", -1); store.HasWord(ws) {
+				goto found
 			}
 		}
 	}
 
+	return nil, false, nil
+
+found:
 	w, exists, err := store.GetWords(ws)
 	if err != nil {
 		return nil, true, fmt.Errorf("error getting word '%s': %v", ws, err)
