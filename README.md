@@ -4,7 +4,7 @@ Dictionary library and API server based on data from the *Project Gutenberg EBoo
 
 See the dictionary folder for usage as a Go library and the parsing code. The library can be used to create dictionaries from other sources. The on-disk format and library interface will remain backwards-compatible on a best-effort basis. If backwards-compatiblility is broken, it will break with an error message (rather than silently and cause other issues).
 
-**Sample:** https://dict.geek1011.net/word/example
+**Sample:** https://dict.api.pgaskin.net/word/example
 
 ```json
 {
@@ -66,7 +66,7 @@ See the dictionary folder for usage as a Go library and the parsing code. The li
 }
 ```
 
-**Sample:** https://dict.geek1011.net/word/arch
+**Sample:** https://dict.api.pgaskin.net/word/arch
 
 ```json
 {
@@ -206,7 +206,7 @@ See the dictionary folder for usage as a Go library and the parsing code. The li
 }
 ```
 
-**Sample:** https://dict.geek1011.net/word/where
+**Sample:** https://dict.api.pgaskin.net/word/where
 
 ```json
 {
@@ -351,7 +351,7 @@ See the dictionary folder for usage as a Go library and the parsing code. The li
 }
 ```
 
-**Sample** https://dict.geek1011.net/word/nonexistent-word
+**Sample** https://dict.api.pgaskin.net/word/nonexistent-word
 
 When no entries are found for a word, a 404 error (for backwards compatibility)
 will be returned along with the following body:
